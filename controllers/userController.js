@@ -1,6 +1,6 @@
 const asyncHandler = require("express-async-handler");
+const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
 
 /*
@@ -11,22 +11,37 @@ const User = require("../models/userModel");
 
 const getUsers = asyncHandler(async (req, res) => {
   const users = await User.find();
+  const usersData = users.map((user) => {
+    return {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      isAdmin: user.isAdmin,
+    };
+  });
   res.status(200).json({
     message: "All contacts retrieved successfully!",
     status: true,
-    users: users,
+    users: usersData,
   });
 });
 
 const getUser = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id);
-
   // Check if user exists
-  if (!user) {
-    res.status(404).json({ 
-      message: "User not found" 
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(400).json({
+      message: "Invalid user id",
     });
   }
+  // Check if the user exists
+  const user = await User.findById(req.params.id);
+
+  if (!user) {
+    return res.status(404).json({
+      message: "User not found",
+    });
+  }
+
   // Check if the user is the owner of the account
   if (user._id.toString() !== req.user._id.toString()) {
     res.status(401).json({
@@ -48,16 +63,19 @@ const getUser = asyncHandler(async (req, res) => {
 });
 
 const updateUser = asyncHandler(async (req, res) => {
+  // Check if the user exists
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(400).json({
+      message: "Invalid user id",
+    });
+  }
+  // Check if the user exists
   const user = await User.findById(req.params.id);
 
-  // Check if the user exists
   if (!user) {
-    try {
-      res.status(404);
-      throw new Error("User not found");
-    } catch (error) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    return res.status(404).json({
+      message: "User not found",
+    });
   }
 
   // Check if the user is the owner of the account
@@ -74,31 +92,40 @@ const updateUser = asyncHandler(async (req, res) => {
   if (req.body.password) {
     user.password = await bcrypt.hash(req.body.password, 10);
   }
-
+  // Save the updated user
   const updatedUser = await user.save();
 
-  res.status(200).json(
-    {
-       message: "User updated successfully",
-      _id: updatedUser._id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      isAdmin: updatedUser.isAdmin,
-     
-      
-    }
-  );
+  res.status(200).json({
+    message: "User updated successfully",
+    _id: updatedUser._id,
+    name: updatedUser.name,
+    email: updatedUser.email,
+    isAdmin: updatedUser.isAdmin,
+  });
 });
 
 const deleteUser = asyncHandler(async (req, res) => {
+
+  // Check if the user exists
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return res.status(400).json({
+      message: "Invalid user id",
+    });
+  }
   // Check if the user exists
   const user = await User.findById(req.params.id);
+
+  if (!user) {
+    return res.status(404).json({
+      message: "User not found",
+    });
+  }
 
   // Check if the user is the owner of the account
   if (user._id.toString() !== req.user._id.toString() && !req.user.isAdmin) {
     return res
       .status(401)
-      .json({ message: "Not authorized to delete this user" });
+      .json({ message: "Not authorized to delete this user | Need admin privilege" });
   }
   // Delete the user
   const deletedUser = await User.findByIdAndDelete(req.params.id);
@@ -109,4 +136,9 @@ const deleteUser = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getUsers, getUser, updateUser, deleteUser };
+module.exports = {
+  getUsers,
+  getUser,
+  updateUser,
+  deleteUser,
+};
