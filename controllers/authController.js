@@ -10,10 +10,14 @@ const User = require("../models/userModel");
  */
 
 const registerUser = asyncHandler(async (req, res) => {
-  const { name, email, password, isAdmin } = req.body; // Destructuring the request body
-  if (!name || !email || !password) {
+  const { name, email, password, password_confirmation, isAdmin } = req.body; // Destructuring the request body
+  if (!name || !email || !password || !password_confirmation) {
     res.status(400);
     throw new Error("All fields are required");
+  }
+  if (password !== password_confirmation) {
+    res.status(400);
+    throw new Error("Passwords do not match");
   }
   const userAvailable = await User.findOne({ email }); // Check if user already exists
   if (userAvailable) {
@@ -33,10 +37,13 @@ const registerUser = asyncHandler(async (req, res) => {
   // console.log(`User created successfully! ${user}`);
   if (user) {
     res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      isAdmin: user.isAdmin,
+      message: "User created successfully!",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isAdmin: user.isAdmin,
+      },
     });
   } else {
     res.status(400);
@@ -45,7 +52,7 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 /*
- * @desc Register a user
+ * @desc Login a user
  * @route POST /api/users/login
  * @access public
  */
@@ -56,6 +63,7 @@ const loginUser = asyncHandler(async (req, res) => {
     throw new Error("All fields are required");
   }
   const user = await User.findOne({ email }); // Check if user exists
+
   if (user && (await bcrypt.compare(password, user.password))) {
     // Check if password matches
     const accessToken = jwt.sign(
@@ -87,7 +95,7 @@ const loginUser = asyncHandler(async (req, res) => {
  */
 const currentUser = asyncHandler(async (req, res) => {
   res.json({
-    'user': req.user,
+    user: req.user,
     status: true,
   });
 });
