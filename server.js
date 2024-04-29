@@ -18,3 +18,5 @@ app.use("/api/products", require("./routes/productRoutes"));
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+
+// Pekoms!!
